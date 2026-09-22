@@ -66,6 +66,7 @@ jobs:
             "gr-docker run gr-atv2-front:1 \
               --name front \
               -p ${{ env.PORTA }}:80 \
+              -e API=gr-${{ env.SLUG }}-api \
               -e DEPLOY_SHA=${{ github.sha }} \
               --network web"
 
