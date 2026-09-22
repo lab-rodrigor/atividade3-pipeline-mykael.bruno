@@ -28,67 +28,47 @@ jobs:
 
       - name: Derrubar a topologia antiga
         run: |
-          ssh -i ~/.ssh/deploy \
-          gr-${{ env.SLUG }}@gr.lab.ayty.org \
-          "
-          gr-docker rm front || true
-          gr-docker rm api || true
-          gr-docker rm banco || true
-          "
-          # TODO: apague os três containers, se existirem.
-          # Dica: o passo não pode falhar quando eles ainda não existem.
-          echo "TODO"
+          for container in front api banco; do
+            ssh -i ~/.ssh/deploy gr-${{ env.SLUG }}@gr.lab.ayty.org \
+              "gr-docker rm $container" || true
+          done
 
       - name: Criar rede e volume
         run: |
-          ssh -i ~/.ssh/deploy \
-          gr-${{ env.SLUG }}@gr.lab.ayty.org \
-          "
-          gr-docker network create web || true
-          gr-docker network create dados --interna || true
-          gr-docker volume create pgdata || true
-          "
-          # TODO: as duas redes e o volume. A rede do banco é interna.
-          # Dica: criar o que já existe devolve erro. Trate isso.
-          echo "TODO"
+          ssh -i ~/.ssh/deploy gr-${{ env.SLUG }}@gr.lab.ayty.org \
+            "gr-docker network create web" || true
+          ssh -i ~/.ssh/deploy gr-${{ env.SLUG }}@gr.lab.ayty.org \
+            "gr-docker network create dados --interna" || true
+          ssh -i ~/.ssh/deploy gr-${{ env.SLUG }}@gr.lab.ayty.org \
+            "gr-docker volume create pgdata" || true
 
       - name: Subir banco, API e front
         run: |
-          ssh -i ~/.ssh/deploy \
-          gr-${{ env.SLUG }}@gr.lab.ayty.org \
-          "
-          gr-docker run postgres:17-alpine \
-            --name banco \
-            -v pgdata:/var/lib/postgresql/data \
-            -e POSTGRES_PASSWORD=${{ secrets.DB_SENHA }} \
-            --network dados
+          ssh -i ~/.ssh/deploy gr-${{ env.SLUG }}@gr.lab.ayty.org \
+            "gr-docker run postgres:17-alpine \
+              --name banco \
+              -v pgdata:/var/lib/postgresql/data \
+              -e POSTGRES_PASSWORD=${{ secrets.DB_SENHA }} \
+              --network dados"
 
-            gr-docker run gr-atv2-api:1 \
-            --name api \
-            -e POSTGRES_HOST=gr-${{ env.SLUG }}-banco \
-            -e POSTGRES_DB=pokedex \
-            -e POSTGRES_PASSWORD=${{ secrets.DB_SENHA }} \
-            --network dados
+          ssh -i ~/.ssh/deploy gr-${{ env.SLUG }}@gr.lab.ayty.org \
+            "gr-docker run gr-atv2-api:1 \
+              --name api \
+              -e POSTGRES_HOST=gr-${{ env.SLUG }}-banco \
+              -e POSTGRES_DB=pokedex \
+              -e POSTGRES_PASSWORD=${{ secrets.DB_SENHA }} \
+              --network dados"
 
-            gr-docker network connect web api
+          ssh -i ~/.ssh/deploy gr-${{ env.SLUG }}@gr.lab.ayty.org \
+            "gr-docker network connect web api"
 
-            gr-docker run gr-atv2-front:1 \
-            --name front \
-            -p ${{ env.PORTA }}:80 \
-            -e DEPLOY_SHA=${{ github.sha }} \
-            --network web
-          "
-          # TODO: os três containers, na ordem certa.
-          # O front precisa receber o commit que o deploy publicou:
-          #   -e DEPLOY_SHA=${{ github.sha }}
-          echo "TODO"
+          ssh -i ~/.ssh/deploy gr-${{ env.SLUG }}@gr.lab.ayty.org \
+            "gr-docker run gr-atv2-front:1 \
+              --name front \
+              -p ${{ env.PORTA }}:80 \
+              -e DEPLOY_SHA=${{ github.sha }} \
+              --network web"
 
       - name: Conferir que subiu
         run: |
-          ssh -i ~/.ssh/deploy \
-          gr-${{ env.SLUG }}@gr.lab.ayty.org \
-          "
-          curl -f http://localhost:${{ env.PORTA }}/api/pokemons
-          "
-          # TODO: pergunte ao servidor se a listagem responde.
-          echo "TODO"
+          curl -f http://gr.lab.ayty.org:${{ env.PORTA }}/api/pokemons
